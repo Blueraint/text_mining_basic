@@ -1,9 +1,9 @@
-# Colab용 Blind 데이터 LSTM 감성분석 + KNU 감성사전 활용
+# Colab용 Blind 데이터 LSTM 감성분석 - KNU 감성사전 JSON 버전
 
-# 1. 라이브러리 설치
+# 1. 필수 라이브러리 설치
 !pip install pandas tensorflow konlpy
 
-# 2. 라이브러리 로딩
+# 2. 라이브러리 임포트
 import pandas as pd
 import numpy as np
 import tensorflow as tf
@@ -12,17 +12,24 @@ from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Embedding, LSTM, Dense, Dropout
 from konlpy.tag import Okt
+import json
+import requests
 
-# 3. KNU 감성사전 다운로드
-!wget -O KNU_sentiment_lexicon.csv https://raw.githubusercontent.com/park1200656/KnuSentiLex/master/KnuSentiLex-master/KnuSentiLex.csv
+# 3. KNU 감성사전 JSON 다운로드
+json_url = "https://raw.githubusercontent.com/park1200656/knu_senti_dict/b0d535155374d4ca73d0fdcbf1cc6798f3bed6a6/SentiWord_info.json"
+response = requests.get(json_url)
+senti_data = json.loads(response.text)
 
-# 4. KNU 감성사전 로딩
-senti_lex = pd.read_csv("KNU_sentiment_lexicon.csv")
-senti_dict = dict(zip(senti_lex['word'], senti_lex['polarity']))
+# 4. JSON -> dict로 변환
+senti_dict = {}
+for k, v in senti_data.items():
+    word = v['word']
+    polarity = int(v['polarity'])
+    senti_dict[word] = polarity
 
 print(f"감성사전 로딩 완료, 단어 수: {len(senti_dict)}")
 
-# 5. 데이터 로딩
+# 5. Blind 데이터 로딩
 # CSV 예시: columns = ['id','body']
 df = pd.read_csv('/content/blind_data.csv')
 
@@ -46,10 +53,10 @@ df['label'] = df['body'].apply(get_sentiment)
 # 중립 제거
 df = df[df['label'] != 2]
 
-# 데이터 분포 확인
+# 데이터 분포 출력
 print(df['label'].value_counts())
 
-# 7. 텍스트 토크나이징
+# 7. 토크나이저 처리
 texts = df['body'].tolist()
 labels = df['label'].values
 
@@ -61,7 +68,7 @@ max_length = 100
 X = pad_sequences(sequences, maxlen=max_length, padding='post')
 y = np.array(labels)
 
-# 8. 데이터 분리
+# 8. 학습/검증 분리
 from sklearn.model_selection import train_test_split
 X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
 
